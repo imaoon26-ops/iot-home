@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>IoT Dashboard</title> </head>
+<body>
+    <h1>🏠 Smart Home Dashboard</h1>
+    
+    <h2>อุณหภูมิห้อง: <span id="tempValue">--</span> °C</h2>
+    
+    <button onclick="turnOnLight()">💡 เปิดไฟ</button>
+    <button onclick="turnOffLight()">🌑 ปิดไฟ</button>
+
+    <script>
+        // --- ส่วนของ Javascript (สมองของหน้าเว็บ) ---
+        
+        // สั่งให้ทำงานข้างในนี้ ซ้ำๆ ทุกๆ 2000 มิลลิวินาที (2 วินาที)
+        setInterval(() => {
+            // fetch คือการให้หน้าเว็บส่งคำขอไปหา API Server 
+            fetch('http://localhost:5000/room_temp')
+                .then(res => res.json()) // เมื่อ API ตอบกลับมา ให้แปลงข้อมูลเป็น JSON
+                .then(data => { 
+                    // เอาตัวเลขที่ได้ (data.temp) ไปทับตรงที่เขียนว่า "--" ใน HTML ข้างบน
+                    document.getElementById("tempValue").innerText = data.temp; 
+                });
+        }, 2000);
+
+        // ฟังก์ชันเมื่อกดปุ่มเปิดไฟ
+        function turnOnLight() {
+            // สั่ง fetch ไปที่ API เปิดไฟ (เดี๋ยว API จะไปส่ง MQTT ให้บอร์ดเปิดไฟเอง)
+            fetch('http://localhost:5000/light_on');
+        }
+
+        // ฟังก์ชันเมื่อกดปุ่มปิดไฟ (ต้องไปเขียนเพิ่มใน api_server.py ด้วยนะ ลอจิกเหมือนเปิดไฟเลย)
+        function turnOffLight() {
+            fetch('http://localhost:5000/light_off');
+        }
+    </script>
+</body>
+</html>
