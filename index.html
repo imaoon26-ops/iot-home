@@ -1,39 +1,96 @@
 <!DOCTYPE html>
-<html>
+<html lang="th">
 <head>
-    <title>IoT Dashboard</title> </head>
+    <meta charset="UTF-8">
+    <title>IoT Smart Home Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; text-align: center; margin: 0; padding: 20px; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin: 0 auto 20px auto; max-width: 800px; }
+        button { padding: 10px 20px; font-size: 16px; margin: 5px; cursor: pointer; border: none; border-radius: 5px; color: white; font-weight: bold; }
+        .btn-on { background-color: #3498db; }
+        .btn-off { background-color: #e74c3c; }
+        select { padding: 8px; font-size: 16px; border-radius: 5px; margin-bottom: 10px; }
+        canvas { max-height: 350px; } /* จำกัดความสูงของกราฟ */
+    </style>
+</head>
 <body>
+
     <h1>🏠 Smart Home Dashboard</h1>
     
-    <h2>อุณหภูมิห้อง: <span id="tempValue">--</span> °C</h2>
-    
-    <button onclick="turnOnLight()">💡 เปิดไฟ</button>
-    <button onclick="turnOffLight()">🌑 ปิดไฟ</button>
+    <div class="card">
+        <h2>อุณหภูมิห้องปัจจุบัน: <span id="tempValue" style="color: #e67e22;">--</span> °C</h2>
+        <button class="btn-on" onclick="turnOnLight()">💡 เปิดไฟบ้าน</button>
+        <button class="btn-off" onclick="turnOffLight()">🌑 ปิดไฟบ้าน</button>
+    </div>
+
+    <div class="card">
+        <h3>📈 ประวัติอุณหภูมิห้อง (Temperature History)</h3>
+        <label>เลือกช่วงเวลา: </label>
+        <select id="tempRange" onchange="updateTempChart()">
+            <option value="1h">1 ชั่วโมงที่ผ่านมา</option>
+            <option value="24h">24 ชั่วโมงที่ผ่านมา</option>
+        </select>
+        <canvas id="tempChart"></canvas>
+    </div>
 
     <script>
-        // --- ส่วนของ Javascript (สมองของหน้าเว็บ) ---
-        
-        // สั่งให้ทำงานข้างในนี้ ซ้ำๆ ทุกๆ 2000 มิลลิวินาที (2 วินาที)
+        // ==========================================
+        // 1. ส่วนดึงอุณหภูมิปัจจุบัน & ปุ่มกด (โค้ดเดิม)
+        // ==========================================
         setInterval(() => {
-            // fetch คือการให้หน้าเว็บส่งคำขอไปหา API Server 
             fetch('http://localhost:5000/room_temp')
-                .then(res => res.json()) // เมื่อ API ตอบกลับมา ให้แปลงข้อมูลเป็น JSON
+                .then(res => res.json())
                 .then(data => { 
-                    // เอาตัวเลขที่ได้ (data.temp) ไปทับตรงที่เขียนว่า "--" ใน HTML ข้างบน
                     document.getElementById("tempValue").innerText = data.temp; 
-                });
+                })
+                .catch(err => console.log("รอการเชื่อมต่อ API..."));
         }, 2000);
 
-        // ฟังก์ชันเมื่อกดปุ่มเปิดไฟ
         function turnOnLight() {
-            // สั่ง fetch ไปที่ API เปิดไฟ (เดี๋ยว API จะไปส่ง MQTT ให้บอร์ดเปิดไฟเอง)
             fetch('http://localhost:5000/light_on');
         }
 
-        // ฟังก์ชันเมื่อกดปุ่มปิดไฟ (ต้องไปเขียนเพิ่มใน api_server.py ด้วยนะ ลอจิกเหมือนเปิดไฟเลย)
         function turnOffLight() {
             fetch('http://localhost:5000/light_off');
         }
+
+        // ==========================================
+        // 2. ส่วนของกราฟ (Chart.js) ที่เพิ่มใหม่
+        // ==========================================
+        const ctxTemp = document.getElementById('tempChart').getContext('2d');
+        const tempChart = new Chart(ctxTemp, {
+            type: 'line', // เลือกกราฟเส้น
+            data: { 
+                labels: [], // แกน X (เวลา)
+                datasets: [{ 
+                    label: 'อุณหภูมิ (°C)', 
+                    data: [], // แกน Y (ค่าอุณหภูมิ)
+                    borderColor: '#e74c3c', 
+                    backgroundColor: 'rgba(231, 76, 60, 0.2)',
+                    fill: true,
+                    tension: 0.3 // ทำให้เส้นกราฟมีความโค้งมนสวยงาม
+                }] 
+            }
+        });
+
+        function updateTempChart() {
+            const range = document.getElementById('tempRange').value;
+            // ดึงข้อมูลประวัติจาก API (ที่เราเขียนไว้ใน Python)
+            fetch(`http://localhost:5000/api/history/temp?range=${range}`)
+                .then(res => res.json())
+                .then(data => {
+                    tempChart.data.labels = data.labels; // อัปเดตเวลา
+                    tempChart.data.datasets[0].data = data.values; // อัปเดตอุณหภูมิ
+                    tempChart.update(); // สั่งให้กราฟวาดใหม่
+                })
+                .catch(err => console.log("รอการเชื่อมต่อ API..."));
+        }
+
+        // โหลดกราฟครั้งแรกเมื่อเปิดหน้าเว็บ และตั้งให้อัปเดตกราฟทุกๆ 5 วินาที
+        updateTempChart();
+        setInterval(updateTempChart, 5000);
     </script>
 </body>
 </html>
