@@ -40,9 +40,7 @@ def on_message(client, userdata, msg):
     if topic == "house/room_temp": 
         insert_db("INSERT INTO room_temp (temp) VALUES (?)", (float(payload),))
         
-    elif topic == "house/light/status": 
-        status = True if payload == "ON" else False 
-        insert_db("INSERT INTO light_status (status) VALUES (?)", (status,))
+    
         
     # --- 🌟 เพิ่มใหม่: ถ้าหัวข้อคือ สถานะประตู (LOCKED / UNLOCKED) ---
     elif topic == "house/door/status":

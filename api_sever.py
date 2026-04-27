@@ -24,18 +24,6 @@ def get_temp():
     row = query_db("SELECT temp FROM room_temp ORDER BY timestamp DESC LIMIT 1")
     return jsonify({"temp": row[0]['temp'] if row else 0.0})
 
-# ==========================================
-# ส่วนที่ 2: API สำหรับสั่งงานอุปกรณ์
-# ==========================================
-@app.route('/light_on', methods=['GET'])
-def light_on():
-    publish.single("house/light/command", "ON", hostname="localhost")
-    return jsonify({"status": "success"})
-
-@app.route('/light_off', methods=['GET'])
-def light_off():
-    publish.single("house/light/command", "OFF", hostname="localhost")
-    return jsonify({"status": "success"})
 
 @app.route('/door_unlock', methods=['GET', 'POST'])
 def door_unlock():

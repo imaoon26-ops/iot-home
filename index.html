@@ -21,8 +21,6 @@
     
     <div class="card">
         <h2>อุณหภูมิห้องปัจจุบัน: <span id="tempValue" style="color: #e67e22;">--</span> °C</h2>
-        <button class="btn-on" onclick="turnOnLight()">💡 เปิดไฟบ้าน</button>
-        <button class="btn-off" onclick="turnOffLight()">🌑 ปิดไฟบ้าน</button>
     </div>
 
     <div class="card">
@@ -48,13 +46,7 @@
                 .catch(err => console.log("รอการเชื่อมต่อ API..."));
         }, 2000);
 
-        function turnOnLight() {
-            fetch('http://localhost:5000/light_on');
-        }
-
-        function turnOffLight() {
-            fetch('http://localhost:5000/light_off');
-        }
+        
 
         // ==========================================
         // 2. ส่วนของกราฟ (Chart.js) ที่เพิ่มใหม่
