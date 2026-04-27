@@ -4,85 +4,151 @@
     <meta charset="UTF-8">
     <title>IoT Smart Home Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; text-align: center; margin: 0; padding: 20px; }
-        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin: 0 auto 20px auto; max-width: 800px; }
-        button { padding: 10px 20px; font-size: 16px; margin: 5px; cursor: pointer; border: none; border-radius: 5px; color: white; font-weight: bold; }
-        .btn-on { background-color: #3498db; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #f4f7f6; text-align: center; margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: auto; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        
+        /* สไตล์ปุ่ม */
+        .btn { padding: 12px 30px; font-size: 18px; font-weight: bold; cursor: pointer; border: none; border-radius: 8px; color: white; transition: 0.3s; }
+        .btn-on { background-color: #2ecc71; }
         .btn-off { background-color: #e74c3c; }
-        select { padding: 8px; font-size: 16px; border-radius: 5px; margin-bottom: 10px; }
-        canvas { max-height: 350px; } /* จำกัดความสูงของกราฟ */
+        .btn:hover { opacity: 0.8; }
+
+        select { padding: 8px; border-radius: 5px; border: 1px solid #ccc; margin-bottom: 10px; font-size: 14px; }
+        canvas { max-height: 300px; }
+        .status-text { font-size: 20px; font-weight: bold; color: #34495e; }
     </style>
 </head>
 <body>
 
-    <h1>🏠 Smart Home Dashboard</h1>
-    
-    <div class="card">
-        <h2>อุณหภูมิห้องปัจจุบัน: <span id="tempValue" style="color: #e67e22;">--</span> °C</h2>
-    </div>
+    <div class="container">
+        <h1>🏠 Smart Home Control Center</h1>
 
-    <div class="card">
-        <h3>📈 ประวัติอุณหภูมิห้อง (Temperature History)</h3>
-        <label>เลือกช่วงเวลา: </label>
-        <select id="tempRange" onchange="updateTempChart()">
-            <option value="1h">1 ชั่วโมงที่ผ่านมา</option>
-            <option value="24h">24 ชั่วโมงที่ผ่านมา</option>
-        </select>
-        <canvas id="tempChart"></canvas>
+        <div class="card">
+            <h2>อุณหภูมิปัจจุบัน: <span id="currentTemp" style="color: #e67e22;">--</span> °C</h2>
+        </div>
+
+        <div class="card">
+            <h3>💡 ควบคุมไฟห้องรับแขก</h3>
+            <p class="status-text">สถานะ: <span id="lightStatus">ปิดอยู่</span></p>
+            <button id="btnLight" class="btn btn-on" onclick="toggleLight()">เปิดไฟ (Turn ON)</button>
+        </div>
+
+        <div class="card">
+            <h3>📈 ประวัติอุณหภูมิ</h3>
+            <select id="tempRange" onchange="updateTempChart()">
+                <option value="1h">1 ชั่วโมงที่ผ่านมา</option>
+                <option value="24h">24 ชั่วโมงที่ผ่านมา</option>
+            </select>
+            <canvas id="tempChart"></canvas>
+        </div>
+
+        <div class="card">
+            <h3>📶 สถานะการเชื่อมต่อบอร์ด (Signal Strength)</h3>
+            <select id="boardRange" onchange="updateBoardChart()">
+                <option value="1h">1 ชั่วโมงที่ผ่านมา</option>
+                <option value="24h">24 ชั่วโมงที่ผ่านมา</option>
+            </select>
+            <canvas id="boardChart"></canvas>
+        </div>
     </div>
 
     <script>
-        // ==========================================
-        // 1. ส่วนดึงอุณหภูมิปัจจุบัน & ปุ่มกด (โค้ดเดิม)
-        // ==========================================
-        setInterval(() => {
-            fetch('http://localhost:5000/room_temp')
+        const API_BASE = "http://localhost:5000";
+
+        // --- 1. ดึงอุณหภูมิปัจจุบันแบบ Real-time (ทุก 2 วินาที) ---
+        function fetchCurrentTemp() {
+            fetch(`${API_BASE}/room_temp`)
                 .then(res => res.json())
-                .then(data => { 
-                    document.getElementById("tempValue").innerText = data.temp; 
+                .then(data => {
+                    document.getElementById("currentTemp").innerText = data.temp;
                 })
-                .catch(err => console.log("รอการเชื่อมต่อ API..."));
-        }, 2000);
+                .catch(err => console.error("ไม่สามารถดึงอุณหภูมิได้"));
+        }
+        setInterval(fetchCurrentTemp, 2000);
 
-        
+        // --- 2. ฟังก์ชันควบคุมไฟ ---
+        let isLightOn = false;
+        function toggleLight() {
+            const action = isLightOn ? "off" : "on";
+            // ส่ง POST request ไปที่ API
+            fetch(`${API_BASE}/api/light/${action}`, { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    isLightOn = !isLightOn;
+                    const btn = document.getElementById("btnLight");
+                    const status = document.getElementById("lightStatus");
+                    
+                    if(isLightOn) {
+                        btn.innerText = "ปิดไฟ (Turn OFF)";
+                        btn.className = "btn btn-off";
+                        status.innerText = "เปิดอยู่";
+                        status.style.color = "#2ecc71";
+                    } else {
+                        btn.innerText = "เปิดไฟ (Turn ON)";
+                        btn.className = "btn btn-on";
+                        status.innerText = "ปิดอยู่";
+                        status.style.color = "#e74c3c";
+                    }
+                })
+                .catch(err => alert("ไม่สามารถติดต่อ Server เพื่อควบคุมไฟได้"));
+        }
 
-        // ==========================================
-        // 2. ส่วนของกราฟ (Chart.js) ที่เพิ่มใหม่
-        // ==========================================
-        const ctxTemp = document.getElementById('tempChart').getContext('2d');
-        const tempChart = new Chart(ctxTemp, {
-            type: 'line', // เลือกกราฟเส้น
-            data: { 
-                labels: [], // แกน X (เวลา)
-                datasets: [{ 
-                    label: 'อุณหภูมิ (°C)', 
-                    data: [], // แกน Y (ค่าอุณหภูมิ)
-                    borderColor: '#e74c3c', 
-                    backgroundColor: 'rgba(231, 76, 60, 0.2)',
-                    fill: true,
-                    tension: 0.3 // ทำให้เส้นกราฟมีความโค้งมนสวยงาม
-                }] 
-            }
-        });
+        // --- 3. ฟังก์ชันสร้างและอัปเดตกราฟ ---
+        function initChart(canvasId, label, color) {
+            return new Chart(document.getElementById(canvasId).getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: label,
+                        data: [],
+                        borderColor: color,
+                        backgroundColor: color + '22', // ใส่ความโปร่งใส
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        const tempChart = initChart('tempChart', 'อุณหภูมิ (°C)', '#e67e22');
+        const boardChart = initChart('boardChart', 'สัญญาณ (RSSI)', '#2980b9');
 
         function updateTempChart() {
             const range = document.getElementById('tempRange').value;
-            // ดึงข้อมูลประวัติจาก API (ที่เราเขียนไว้ใน Python)
-            fetch(`http://localhost:5000/api/history/temp?range=${range}`)
+            fetch(`${API_BASE}/api/history/temp?range=${range}`)
                 .then(res => res.json())
                 .then(data => {
-                    tempChart.data.labels = data.labels; // อัปเดตเวลา
-                    tempChart.data.datasets[0].data = data.values; // อัปเดตอุณหภูมิ
-                    tempChart.update(); // สั่งให้กราฟวาดใหม่
-                })
-                .catch(err => console.log("รอการเชื่อมต่อ API..."));
+                    tempChart.data.labels = data.labels;
+                    tempChart.data.datasets[0].data = data.values;
+                    tempChart.update();
+                });
         }
 
-        // โหลดกราฟครั้งแรกเมื่อเปิดหน้าเว็บ และตั้งให้อัปเดตกราฟทุกๆ 5 วินาที
+        function updateBoardChart() {
+            const range = document.getElementById('boardRange').value;
+            fetch(`${API_BASE}/api/history/board?range=${range}`)
+                .then(res => res.json())
+                .then(data => {
+                    boardChart.data.labels = data.labels;
+                    boardChart.data.datasets[0].data = data.values;
+                    boardChart.update();
+                });
+        }
+
+        // อัปเดตกราฟอัตโนมัติทุก 5 วินาที
+        setInterval(() => {
+            updateTempChart();
+            updateBoardChart();
+        }, 5000);
+
+        // โหลดข้อมูลครั้งแรกทันทีที่เปิดหน้าเว็บ
         updateTempChart();
-        setInterval(updateTempChart, 5000);
+        updateBoardChart();
+        fetchCurrentTemp();
     </script>
 </body>
 </html>
