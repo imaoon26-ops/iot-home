@@ -34,3 +34,11 @@ services:
     depends_on:
       - mqtt-broker
     command: python mqtt_worker.py
+    # 4. หน้าจอ Dashboard (ถ้ามีโฟลเดอร์ frontend)
+  frontend:
+    image: nginx:alpine
+    container_name: frontend-dashboard
+    ports:
+      - "8080:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html
