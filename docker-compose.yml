@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  # 1. ตัวกลางรับส่งข้อมูล (MQTT Broker)
+  mqtt-broker:
+    image: eclipse-mosquitto:latest
+    container_name: mqtt-broker
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+
+  # 2. ตัว API Server และ AI สแกนหน้า
+  api-server:
+    build: .
+    container_name: api-server
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/app  # เชื่อมโฟลเดอร์ปัจจุบัน เพื่อให้ใช้ DB และรูปภาพร่วมกันได้
+    depends_on:
+      - mqtt-broker
+    command: python api_server.py
+
+  # 3. ตัวรับข้อมูลจาก MQTT ลง Database
+  mqtt-worker:
+    build: .
+    container_name: mqtt-worker
+    volumes:
+      - .:/app
+    depends_on:
+      - mqtt-broker
+    command: python mqtt_worker.py
